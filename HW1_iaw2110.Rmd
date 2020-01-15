@@ -1,0 +1,271 @@
+---
+title: "HW1_iaw2110"
+author: "Ivan Wolansky, iaw2110"
+date: "February 8, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Part 1: Loading, Cleaning the Exploring Data in R
+
+i. Loading the data
+
+```{r}
+setwd("C:/Users/iawol/Desktop/College/Junior Year/2nd Semester/Stat Computing/HW_1")
+getwd()
+housing <- read.csv("NYChousing.csv", as.is = T)
+```
+
+ii. How many rows and columns does the dataframe have?
+
+```{r}
+nrow(housing)
+ncol(housing)
+```
+ii. Solution: The dataframe, housing, has 2506 rows and 22 columns.
+
+iii. Run the appropriate function to display the variable names of the dataframe.
+
+```{r}
+colnames(housing)
+```
+
+iv. Run this command, and explain, in words, what this does:
+apply(is.na(housing), 2, sum)
+
+```{r}
+apply(is.na(housing), 2, sum)
+```
+iv. Solution: This applies the sum function over every column to add up the number of NA values per column.
+
+v. Remove the rows of the dataset for which the variable Value is NA.
+
+```{r}
+housing_no_na <- housing[complete.cases(housing[, "Value"]),]
+```
+
+vi. How many rows did you remove with the previous call? Does this agree with your result
+from (iv)?
+
+```{r}
+# checking the number of rows containing NA removed 
+nrow(housing) - nrow(housing_no_na)
+
+```
+vi. Solution: This call removed 52 rows. This matches the solution for iv. because it shows that there are 52 NA values in the Value column, and this call removed those 52 rows.
+
+vii. Calculate the third quartile of the property values, i.e., the third quartile Q3 is the 75th
+percentile. Use the quantile() function to complete this task.
+
+```{r}
+q_3 <- quantile(housing_no_na$Value, .75)
+q_3
+```
+
+viii. Create a new variable in the dataset called HighValue that is equal to "High" if the
+property's value is greater than Q3 and is equal to "NotHigh" if the property's value is
+less than or equal to Q3.
+
+```{r}
+
+housing_no_na$HighValue <- ifelse(housing_no_na$Value > q_3, "High", "NotHigh")
+```
+
+ix. Display a contingency table that shows the proprtions of HighValue split by Borough.
+Note that the table() function is the easiest way to tackle this problem but the table()
+function gives raw counts.
+
+```{r}
+prop.table(table(housing_no_na$Borough, housing_no_na$HighValue))
+```
+
+x. What is the proportion of properties whose values are in the upper quartile and are
+located in The Bronx? Solve this question in two ways: (1) by using the table from
+(ix), and (2) by using logical/relational commands and using the function mean().
+
+```{r}
+mean(housing_no_na["Borough"] == "Bronx" & housing_no_na["HighValue"] == "High")
+```
+x. Solution: From the table in (ix) I got: 0.05582722 as the proportion of High Value properties in the Bronx. This is the same value that I get by filtering and using the function mean().
+
+xi. Given a randomly selected property is in The Bronx, what is the probability that its
+value is in the upper quartile? Solve this question in two ways: (1) by using the table
+from (ix), and (2) by using logical/relational/filtering commands and using the function
+mean().
+
+```{r}
+# values from table in (ix)
+0.05582722 / (0.05582722 + 0.214751426)
+
+mean(housing_no_na["Borough"] == "Bronx" & housing_no_na["HighValue"] == "High") / 
+  mean(housing_no_na["Borough"] == "Bronx")
+```
+
+xii. Create a new variable in the dataset called logValue that is equal to the logarithm of
+the property's Value. What are the minimum, median, mean, and maximum values of
+logValue?
+
+```{r}
+housing_no_na$logValue <- log(housing_no_na$Value)
+summary(housing_no_na$logValue)
+```
+xii. Solution: The minimum is 8.41, the median is 13.75, the mean is 13.68, and the maximum is 20.47.
+
+xiii. Create a new variable in the dataset called logUnits that is equal to the logarithm of
+the number of units in the property. The number of units in each piece of property is
+stored in the variable UnitCount.
+
+```{r}
+housing_no_na$logUnits <- log(housing_no_na$UnitCount)
+```
+
+xiv. Finally create a new variable in the dataset called after1950 which equals TRUE if
+the property was built in or after 1950 and FALSE otherwise. You'll want to use the
+YearBuilt variable here. This can be done in a single line of code.
+
+```{r}
+housing_no_na$after1950 <- ifelse(housing_no_na$YearBuilt >= 1950, TRUE, FALSE)
+```
+
+Part 2: EDA
+
+2i. Create a multiple boxplot (side-by-side boxplots) comparing property value across the
+five boroughs. Create a multiple boxplot (side-by-side boxplots) comparing property
+logValue across the five boroughs. Make sure to label the plots appropriately.
+
+```{r}
+boxplot(Value ~ Borough, data = housing_no_na, 
+        main = "Property Value by Borough", 
+        ylab= "Property Value", 
+        xlab= "Borough")
+
+boxplot(logValue ~ Borough, data = housing_no_na, 
+        main = "logValue of Properties by Borough", 
+        ylab= "Logarithmic Property Value", 
+        xlab= "Borough")
+```
+
+2ii. Plot property logValue against property logUnits. Name the x and y labels of the
+plot appropriately. logValue should be on the y-axis.
+
+```{r}
+plot(logValue ~ logUnits, 
+     main = "logValue of Properties vs logUnits", 
+     data = housing_no_na, 
+     ylab= "logValue of Property", 
+     xlab= "logUnits")
+```
+
+2iii. Make the same plot as above, but now include the argument col = factor(housing$after1950).
+Describe this plot and the covariation between the two variables. What does the coloring in the plot tell us?
+
+```{r}
+plot(logValue ~ logUnits, 
+     data = housing_no_na, 
+     main = "logValue of Properties vs logUnits by after1950", 
+     ylab= "logValue of Property", 
+     xlab= "logUnits",
+     col = factor(housing_no_na$after1950))
+
+legend("bottomright", 
+       legend = levels(factor(housing_no_na$after1950)), 
+       fill = unique(factor(housing_no_na$after1950)))
+```
+2iii. Solution: Generally, it looks like the variables vary with each other, meaning that the covariance is positive between logValue and logUnits. The coloring tells us whether or not the property was built in or after 1950. Red corresponds with being built in or after 1950, black corresponds with before 1950, and the red shows that correspondingly, those properties built in or after 1950 tend to have more property value and units.
+
+2iv. The cor() function calculates the correlation coefficient between two variables. What
+is the correlation between property logValue and property logUnits in (i) the whole
+data, (ii) just Manhattan (iii) just Brooklyn (iv) for properties built after 1950 (v) for
+properties built before 1950?
+
+```{r}
+# (i) All
+cor(housing_no_na$logValue, housing_no_na$logUnits)
+```
+```{r}
+# (ii) Manhattan
+cor(housing_no_na$logValue[housing_no_na$Borough == "Manhattan"],
+    housing_no_na$logUnits[housing_no_na$Borough == "Manhattan"])
+```
+```{r}
+# (iii) Brooklyn
+cor(housing_no_na$logValue[housing_no_na$Borough == "Brooklyn"], 
+    housing_no_na$logUnits[housing_no_na$Borough == "Brooklyn"])
+```
+```{r}
+# (iv) Built in or after 1950
+cor(housing_no_na$logValue[housing_no_na$after1950 == TRUE], 
+    housing_no_na$logUnits[housing_no_na$after1950 == TRUE])
+```
+```{r}
+# (v) Built before 1950
+cor(housing_no_na$logValue[housing_no_na$after1950 == FALSE], 
+    housing_no_na$logUnits[housing_no_na$after1950 == FALSE])
+```
+
+2v. Make a single plot showing property logValue against property logUnits for Manhattan and Brooklyn. When creating this plot, clearly distinguish the two boroughs.
+
+```{r}
+
+plot(housing_no_na$logUnits[housing_no_na$Borough %in% c("Brooklyn", "Manhattan")],
+     housing_no_na$logValue[housing_no_na$Borough %in% c("Brooklyn", "Manhattan")], 
+     main = "logValue of Properties vs logUnits for Brooklyn and Manhattan", 
+     xlab = "logUnits", 
+     ylab = "logValue of Property", 
+     col=factor(housing_no_na$Borough[housing_no_na$Borough %in% c("Brooklyn", 
+                                                                   "Manhattan")]))
+
+legend("bottomright", 
+       legend = levels(factor(c('Brooklyn', 'Manhattan'))), 
+       fill = unique(factor(c('Brooklyn', 'Manhattan'))))
+```
+
+2vi. Consider the following block of code. Give a single line of R code which gives the same
+final answer as the block of code. There are a few ways to do this.
+
+This code finds each property in Manhattan, adds it to a vector, and then appends each housing value corresponding to each manhattan property to med.value, and then it calculates the median. However, this can be done in one line as shown in the below code chunk. 
+
+```{r}
+manhat.props <- c()
+
+for (props in 1:nrow(housing)) {
+  if (housing$Borough[props] == "Manhattan") {
+    manhat.props <- c(manhat.props, props)
+  }
+}
+med.value <- c()
+for (props in manhat.props) {
+  med.value <- c(med.value, housing$Value[props])
+}
+med.value <- median(med.value, na.rm = TRUE)
+med.value
+
+# if correct then returns the same value as above
+median(housing$Value[housing$Borough == "Manhattan"], na.rm = TRUE)
+```
+
+2vii. For five boroughs, what are the median property values? (Use Value here, not
+logValue.)
+
+```{r}
+# Median Value for Manhattan
+median(housing$Value[housing$Borough == "Manhattan"], na.rm = TRUE)
+
+# Median Value for Brookyln
+median(housing$Value[housing$Borough == "Brooklyn"], na.rm = TRUE)
+
+# Median Value for Bronx
+median(housing$Value[housing$Borough == "Bronx"], na.rm = TRUE)
+
+# Median Value for Queens
+median(housing$Value[housing$Borough == "Queens"], na.rm = TRUE)
+
+# Median Value for Staten Island
+median(housing$Value[housing$Borough == "Staten Island"], na.rm = TRUE)
+```

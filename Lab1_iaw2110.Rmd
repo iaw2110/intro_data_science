@@ -1,0 +1,165 @@
+---
+title: "Lab 1"
+author: "Ivan Wolansky, iaw2110"
+date: "Febuary 1, 2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r, echo = FALSE}
+set.seed(1) # Please don't remove this code!
+```
+
+# Instructions 
+Before you leave lab today, try to upload an **RMarkdown** file to the canvas page (this should have a .Rmd extension) as well as the HTML or PDF output after you have knitted the file (this will have a .html or .pdf extension).  Note that since you have already knitted this file, you should see both a **Lab1_UNI.html** and a **Lab1_UNI.Rmd** file in your GU4206/GR5206 folder.  Click on the **Files** tab to the right to see this.  The files you upload to the Canvas page should be updated with commands you provide to answer each of the questions below.  You can edit this file directly to produce your final solutions.  If you do not finish the lab during the scheduled session, then make sure to submit the file by Tuesday, February 5th by 11:59pm.    
+
+# Background: The Normal Distribution
+Recall from your probability class that a random variable $X$ is normally-distributed with mean $\mu$ and variance $\sigma^2$ (denoted $X \sim N(\mu, \sigma^2)$) if it has a probability density function, or *pdf*, equal to
+
+\[f(x) = \frac{1}{\sqrt{2\pi \sigma^2}} e^{-\frac{(x - \mu)^2}{2\sigma^2}}.\]
+
+In *R* we can simulate $N(\mu, \sigma^2)$ random variables using the \texttt{rnorm()} function.  For example,
+
+```{r}
+rnorm(n = 5, mean = 10, sd = 3)
+```
+
+outputs 5 normally-distributed random variables with mean equal to 10 and standard deviation (this is $\sigma$) equal to 3.  If the second and third arguments are omitted the default rates are **mean = 0** and **sd = 1**, which is referred to as the "standard normal distribution".
+
+# Tasks
+
+## Sample means as sample size increases
+
+1) Generate 100 random draws from the standard normal distribution and save them in a vector named **normal100**.  Calculate the mean and standard deviation of **normal100**.  In words explain why these values aren't exactly equal to 0 and 1.
+
+```{r}
+# You'll want to type your response here.  Your response should look like:
+# normal100 <- 
+# Of course, your answer should not be commented out.
+normal100 <- rnorm(n=100)
+mean(normal100)
+sd(normal100)
+```
+1) Solution: The reason that these values aren't exactly equal to 0 and 1 is because each sample is randomly drawn from a standard normal.
+
+2) The function **hist()** is a base *R* graphing function that plots a histogram of its input.  Use **hist()** with your vector of standard normal random variables from question (1) to produce a histogram of the standard normal distribution.  Remember that typing **?hist** in your console will provide help documents for the **hist()** function.  If coded properly, these plots will be automatically embedded in your output file.
+
+```{r}
+hist(normal100)
+
+```
+
+3) Repeat question (1) except change the number of draws to 10, 1000, 10,000, and 100,000 storing the results in vectors called **normal10**, **normal1000**, **normal10000**, **normal100000**. 
+
+```{r}
+# 10 random draws and mean and sd calculation
+normal10 <- rnorm(n=10)
+mean(normal10)
+sd(normal10)
+
+# 1000 random draws and mean and sd calculation
+normal1000 <- rnorm(n=1000)
+mean(normal1000)
+sd(normal1000)
+
+# 10000 random draws and mean and sd calculation
+normal10000 <- rnorm(n=10000)
+mean(normal10000)
+sd(normal10000)
+
+# 100000 random draws and mean and sd calculation
+normal100000 <- rnorm(n=100000)
+mean(normal100000)
+sd(normal100000)
+```
+
+4) We want to compare the means of our four random draws.  Create a vector called **sample_means** that has as its first element the mean of **normal10**, its second element the mean of **normal100**, its third element the mean of **normal1000**, its fourth element the mean of **normal10000**, and its fifth element the mean of **normal100000**.  After you have created the **sample_means** vector, print the contents of the vector and use the **length()** function to find the length of this vector.  (it should be five).  There are, of course, multiple ways to create this vector.  Finally, explain in words the pattern we are seeing with the means in the **sample_means** vector.
+
+```{r}
+sample_means <- c(mean(normal10), mean(normal100), mean(normal1000), mean(normal10000), 
+                  mean(normal100000))
+sample_means
+length(sample_means)
+```
+4) Solution: As the sample size grows, the sample mean will approach the mean of the standard normal distribution by law of large numbers. 
+
+## Sample distribution of the sample mean
+
+5)  Let's push this a little farther.  Generate 1 million random draws from a normal distribution with $\mu = 3$ and $\sigma^2 = 4$ and save them in a vector named **normal1mil**.  Calculate the mean and standard deviation of **normal1mil**.
+
+```{r}
+normal1mil <- rnorm(n=1000000, mean=3, sd=2)
+mean(normal1mil)
+sd(normal1mil)
+```
+6) Find the mean of all the entries in **normal1mil** that are greater than 3.  You may want to generate a new vector first which identifies the elements that fit the criteria.
+
+```{r}
+mean(normal1mil[normal1mil > 3])
+
+```
+
+7) Create a matrix **normal1mil_mat** from the vector **normal1mil** that has 10,000 columns (and therefore should have 100 rows).
+
+```{r}
+normal1mil_mat <- matrix(normal1mil, nrow=100, ncol=10000)
+```
+
+8) Calculate the mean of the $1234^{th}$ column.
+
+```{r}
+mean(normal1mil_mat[, 1234])
+```
+
+9) Use the **colSums()** functions to calculate the *means* of each column of **normal1mil_mat**.  Remember, **?colSums** will give you help documents about this function.  Save the vector of column means with an appropriate name as it will be used in the next task.
+
+```{r} 
+col_means <- colSums(normal1mil_mat) / 100
+```
+
+10) Finally, produce a histogram of the column means you calculated in task (9).  What is the distribution that this histogram approximates (i.e.\ what is the distribution of the sample mean in this case)?
+
+```{r}
+hist(col_means)
+```
+
+10) Solution: The shape of the histogram is very similar to the shape of a normal distribution, which tells me that the sample mean follows a normal distribution.
+
+11)  Let's push this even farther.  Generate 10 million random draws from an exponential  distribution with rate parameter $\lambda=3$ (**Hint: ?rexp**). Save the simulated draws in a vector named **exp_10mil**.  Calculate the mean and standard deviation of **exp_10mil**.  How do these numbers compare to $E(X)=1/3$ and $sd(X)=1/3$? 
+
+```{r}
+exp_10mil <- rexp(n=10000000, rate=3)
+mean(exp_10mil)
+sd(exp_10mil)
+```
+11) Solution: These numbers are roughly equal to $E(X)=1/3$ and $sd(X)=1/3$ which makes sense given the law of large numbers. This means that increasing the number of samples will bring the sample mean and variance closer to the true mean and variance.
+
+12) Create a matrix **exp10mil_mat** from the vector **exp_10mil** that has 10,000 columns (and therefore should have 1000 rows). Use the **colMeans()** function to calculate the *means* of each column of **exp10mil_mat**.  Show the first 10 computed means.   
+
+```{r}
+exp10mil_mat <- matrix(exp_10mil, nrow=1000, ncol=10000)
+exp_means <- colMeans(exp10mil_mat)
+head(exp_means, 10)
+```
+
+13) Finally, produce a histogram of the column means you calculated in task (12).  What is the approximate distribution that this histogram displays (i.e.\ what is the distribution of the sample mean in this case)? Overlay the true approximate density function over the histogram.  **Note:** the correct code is displayed below.
+
+```{r}
+hist(exp_means,
+      main="Histogram of Exponential Means",
+      xlab=expression(bar(X)),
+      prob = T,
+      breaks=20)
+ n <- nrow(exp10mil_mat)
+ mean_exp <- 1/3
+ mean_exp
+ sd_exp <- 1/(3*sqrt(n))
+ sd_exp
+ x <- seq(0,1,by=.0001)
+ my_density <- dnorm(x,mean=mean_exp,sd=sd_exp)   
+ lines(x,my_density,col="purple")
+```
+
+13) Solution: The approximate distribution of this histogram is a normal distribution with $E(X)=1/3$ and $\sigma^{2}=\frac{1}{9n}$ by the Central Limit Theorem (aka N$(1/3, 1/9n)$).That is why the histogram distribution is so similar to the approximate density function.
+

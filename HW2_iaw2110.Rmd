@@ -1,0 +1,144 @@
+---
+title: "HW2_iaw2110"
+author: "Ivan Wolansky, iaw2110"
+date: "March 6, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+i. Successfully saved text file.
+
+ii. Use the readLines() command we studied in class to load the NetsSchedule1819.html
+file into a character vector in R. Call the vector nets1819.
+
+```{r}
+nets1819 <- readLines(paste("C:/Users/iawol/Desktop/College/Junior Year/2nd Semester",
+                      "/Stat Computing/HW_2/NetsSchedule1819.html", sep=""), warn=FALSE)
+
+#### Part a
+  length(nets1819)
+  
+#### Part b
+  sum(nchar(nets1819))
+  
+#### Part c
+  max(nchar(nets1819))
+```
+a. There are 108 lines in the NetsSchedule1819.html file.
+
+b. The total number of characters in the file is 509575.
+
+c. The maximum number of characters in a line in the file is 262704.
+
+
+iii. Write a regular expression that will capture the date of the game. Then using the
+grep() function find the lines in the file that correspond to the games
+
+```{r}
+  date_express <- "[A-Z][a-z]{2},\\s[A-Z][a-z]{2}\\s[0-9]+"
+  games <- grep(nets1819, pattern = date_express)
+  games
+
+```
+
+
+iv. Using the expression you wrote in (iii) along with the functions regexpr() and
+regmatches(), extract the dates from the text file. Store this information in a vector
+called date to save to use below. Display the first six dates of the extracted dates
+vector. Hint: We did something like this in class.
+
+```{r}
+  date_loc <- gregexpr(date_express, nets1819[games])
+  date <- regmatches(nets1819[games], date_loc)
+  date <- unlist(date)
+  head(date, 6)
+```
+
+
+v. Use the same strategy as in (iii) and (iv) to create a time vector that stores the time
+of the game. Notice that the length of this vector might be shorter because it only
+captures the games for the remainder of the season and the season is more than half
+over. Display the first six times of the extracted time vector.
+
+```{r}
+  time_express <- "[0-9]+:[0-9]{2} (PM|AM)"
+  time_loc <- gregexpr(time_express, nets1819[games])
+  time <- regmatches(nets1819[games], time_loc)
+  time <- unlist(time)
+  
+  ## created time_na vector in order to populate the
+  ## first 66 time values with NA since they were
+  ## not available in the html
+  time_na <- rep(NA, 82 - length(time))
+  time <- c(time_na, time)
+  head(time, 6)
+```
+
+
+vi. We would now like to gather information about whether the game is home or away.
+This information is indicated in the schedule by either an '@' or a 'vs' in front of the
+opponent. If the Nets are playing '@' their opponent's court, the game is away. If the
+Nets are playing 'vs' the opponent, the game is at home.Capture this information using a regular expression. You may want to use the HTML
+code around these values to guide your search. Then extract this information and use
+it to create a vector called home which takes the value 1 if the game is played at home
+or 0 if it is away. Display the first six values of the home vector.
+
+```{r}
+  home_away_express <- "\"homeAwaySymbol\":\"(@|vs)\""
+  gameplace <- grep(nets1819, pattern = home_away_express)
+  place_loc <- gregexpr(home_away_express, nets1819[gameplace])
+  home <- regmatches(nets1819[gameplace], place_loc)
+  home <- unlist(home)
+  home <- ifelse(home == "\"homeAwaySymbol\":\"vs\"", 1, 0)
+  
+  ## created this temporary vector in order to 
+  ## properly order the game locations from the
+  ## start of the season until the end
+  ## had to be done manually due to html format
+  home_temp <- home
+  home <- c(home_temp[17:length(home_temp)], home_temp[1:16])
+  head(home, 6)
+
+```
+
+```{r}
+  opponent_express <- "\"displayName\":\"([a-zA-Z]|[0-9]|\\s)+\",\"logo\""
+  game_opponent <- grep(nets1819, pattern = opponent_express)
+  opponent_loc <- gregexpr(opponent_express, nets1819[game_opponent])
+  opponent <- regmatches(nets1819[game_opponent], opponent_loc)
+  opponent <- unlist(opponent)
+  
+  team_name_express <- ":\"([a-zA-Z]|[0-9]|\\s)+\","
+  name_loc <- gregexpr(team_name_express, opponent)
+  name <- regmatches(opponent, name_loc)
+  opponent <- substr(name, 3, nchar(name)-2)
+  
+  ## created this temporary vector in order to 
+  ## properly order the opponents from the
+  ## start of the season until the end
+  ## had to be done manually due to html format
+  opponent_temp <- opponent
+  opponent <- c(opponent_temp[17:length(opponent_temp)], opponent_temp[1:16])
+  head(opponent, 6)
+  
+  
+```
+
+
+viii. Construct a data frame of the four variables in the following order: date, time,
+opponent, home. Print the head and the tail of the dataframe. Does the data match
+the games as seen from the web browser? Note The time vector can have NA's for
+the games that were already played.
+
+```{r}
+  nets_schedule <- data.frame(date, time, opponent, home)
+head(nets_schedule)
+tail(nets_schedule)
+```
+
+Due to adjusting the vectors for opponents and location, the dataframe ultimately matches the data for the games from the web browser. If this had not been done, then the dates and times would not have corresponded with the correct locations and opponents.

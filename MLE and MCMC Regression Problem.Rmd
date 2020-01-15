@@ -1,0 +1,517 @@
+---
+title: "MLE and MCMC Regression Problem"
+author: "Gabriel"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# MLE and Bayes' Posterior MCMC
+
+Note that the above problem was not included on last years final exam.  This problem is designed to give students more practice with MLE and MCMC. 
+
+## Data Generating Process and Dataset: 
+
+Consider the simple linear regression model:
+\[
+Y_i = \beta_0+\beta_1 x_i + \epsilon_i,
+\]
+where $i=1,2,\ldots,100$ and $\epsilon_i\overset{iid}{\sim}N(0,\sigma^2=4)$. Note that we are interested in estimating $\beta_0,\beta_1$ and we are assuming known variance $\sigma^2=4$. The dataset of interest is **MLE_MCMC_Problem.csv**.  The scatter plot follows:
+
+```{r}
+MCMC.data <- read.csv("MLE_MCMC_Problem.csv")
+plot(MCMC.data$x,MCMC.data$y,xlab="x",ylab="y")
+```
+
+# Estimation Procedure 1: Maximm Likelihood
+
+The goal of this section is to estimate parameters $\beta_o$ and $\beta_1$ using maximum likelihood. The likelihood function is
+\[
+L(\beta|y_1,\ldots,y_n)=L(\beta_0,\beta_1|y_1,\ldots,y_n)=\prod_{i=1}^{100} f(y_i|\beta_0,\beta_1).
+\]
+The function $f(y_i|\beta_0,\beta_1)$ comes directly from our simple linear regression model.
+
+**Problems (1) - (4):**
+
+1) Define the regular likelihood function $L(\beta_0,\beta_1|y_1,\ldots,y_{100})$ in R. This should be a function of the vector $\begin{pmatrix} \beta_0 & \beta_1 \end{pmatrix}$.  Name the likelihood function **my.likeliood** and evaluate your likelihood at the point **c(1,1)**.
+
+```{r}
+## Solution goes here
+my.likelihood <- function(beta, data=MCMC.data) {
+  beta0 <- beta[1]
+  beta1 <- beta[2]
+  x <- data$x
+  y <- data$y
+  linear <- beta0 + beta1 * x
+  return(prod(dnorm(y, mean=linear, sd=2)))
+}
+
+my.likelihood(beta=c(1,1))
+```
+
+2) Define the negative log-likelihood function $-\ell(\beta_0,\beta_1|y_1,\ldots,y_{100})$ in R. This should be a function of the vector $\begin{pmatrix} \beta_0 & \beta_1 \end{pmatrix}$.  Name the likelihood function **my.NL.likeliood**. Evaluate your negative log-likelihood at the point **c(0,0)**.
+
+```{r}
+## Solution goes here
+my.NL.likelihood <- function(beta, data=MCMC.data) {
+  beta0 <- beta[1]
+  beta1 <- beta[2]
+  x <- data$x
+  y <- data$y
+  linear <- beta0 + beta1 * x
+  return(-sum(dnorm(y, mean=linear, sd=2, log=TRUE)))
+}
+my.NL.likelihood(beta=c(1,1))
+```
+
+3) Check that your answer from problem (2) matches problem (1) by taking evaluating:
+
+```{r}
+exp(-1*my.NL.likelihood(beta=c(1,1)))
+# Compare
+my.likelihood(beta=c(1,1))
+```
+
+4) Use the **nlm()** function to compute the maximum likelihood estimates of  $\beta_0,\beta_1$. Use the starting value **p=c(0,0)**.  Compare your answer to the estimated coefficients produced from the linear model function **lm()**. **Note:** the least squares and maximum likelihood estimates are analytically the same in this scenario.
+
+```{r}
+## Solution goes here 
+nlm(my.NL.likelihood, p=c(0,0))$estimate
+lm(y~x, data=MCMC.data)$coef
+```
+Also note that the sample variance about the line (MSE) is close to the true variance $\sigma^{2}= 4$. We are not interested in estimating $\sigma^{2}$ because it is known (obviously), but it is nice to see the empirical results match
+our model.
+
+```{r}
+n <- nrow(MCMC.data)
+sum(residuals(lm(y~x,data=MCMC.data))^2)/(n-2)
+```
+
+# Estimation Procedure 2: Bayes' MCMC
+
+The goal of this section is to estimate parameters $\beta_0$ and $\beta_1$ using Bayesian techniques. Students are required to preform the famous MCMC approach to simulate from target posterior distribution $\pi(\beta_0,\beta_1|y_1,\ldots,y_{100})$. The empirical Bayes' estimators $\hat{\beta}_{0,B}$ and $\hat{\beta}_{1,B}$ can then be computed from the simulated posterior. Note that both posteriors are simulated simultaneously.   To solve this problem, we fist choose a prior distribution $\pi(\beta_0,\beta_1)$ and we must also set up the likelihood function 
+\[
+L(\theta|y_1,\ldots,y_n)=L(\beta_0,\beta_1|y_1,\ldots,y_n)=\prod_{i=1}^{100} f(y_i|\beta_0,\beta_1).
+\]
+The likelihood was solved in problem (1). 
+
+
+## Choice of Prior:
+
+In ordinary linear regression, the objective function for least squares or maximum likelihood has no constraints placed on our parameters. Thus the unknown parameters $\beta_0,\beta_1$ can theoretically take on any real numbers. Consequently, a first natural choice of our prior should be a joint distribution that allows for real-valued coefficients. In our setting, choose the prior distribution $\pi(\beta_0,\beta_1)$ to be bivariate normal with pdf defined by:
+\[
+\pi(\beta)=\pi(\beta_0,\beta_1)=(2\pi)^{-1}\det(\Sigma)^{-1/2}\exp{\Big{(}-\frac{1}{2}(\beta-\mu)^T\Sigma^{-1}(\beta-\mu)\Big{)}}, \ \ \text{where} \ \ \beta \in \mathcal{R}^2,
+\]
+and
+\[
+\beta=\begin{pmatrix} \beta_0 & \beta_1 \end{pmatrix}^T, \ \ \ \  \mu=  \begin{pmatrix}\mu_0 & \mu_1 \end{pmatrix}^T, \ \ \ \   \Sigma=\begin{pmatrix}\sigma_0^2 & \rho\sigma_0\sigma_1 \\ \rho\sigma_0\sigma_1 & \sigma_1^2   \end{pmatrix}.
+\]
+This prior has parameters $\mu_0,\mu_1,\sigma_0,\sigma_1,\rho$. The following code, which is hidden in the knitted markdown pdf, is the joint pdf of the bivariate normal. The density is plotted for parameter values $\mu_0=0,\mu_1=0,\sigma_0=1,\sigma_1=1,\rho=0$.
+
+**Note:** the code displayed (or hidden) below will not be used in the MCMC algorithm. Recall that the proposal density, in our case $g(\beta_0,\beta_1)=\pi(\beta_0,\beta_1)$, cancels out in the Metropolis-Hastings ratio. This code is included to give students a visual representation of our bivariate normal prior.
+
+
+```{r,echo=F}
+# Density 
+d.mult.norm <- function(u,mu0=0,mu1=0,sigma0=1,sigma1=1,rho=0) {
+  
+  mu <- c(mu0,mu1)
+  sigma <- matrix(c(sigma0^2,sigma0*sigma1*rho,sigma0*sigma1*rho,sigma1^2),nrow=2)
+  exponent <- -1/2*c(t(u-mu)%*%solve(sigma)%*%(u-mu))
+  return((2*pi)^(-1)*(det(sigma))^(-1/2)*exp(exponent))
+}
+```
+ 
+
+```{r,echo=F,fig.height=3,fig.width=4}
+## 3D Plot 
+refine <- 45
+u1=seq(-4,4,length=refine)
+u2=seq(-4,4,length=refine)
+f=outer(u1,u2,function(u1,u2) apply(cbind(u1,u2),
+                                    1,
+                                    d.mult.norm,
+                                    rho=.2))
+par(mar = c(0,0,0,0))
+persp(u1,u2,f,
+      theta=-30,phi=20,
+      col="pink",
+      border=T,
+      box=T,
+      ticktype="detailed",
+      nticks=2,
+      zlim = range(0,d.mult.norm(c(0,0),rho=.2)+.04),zlab="f(u)")
+``` 
+
+
+## MCMC Setup
+
+Suppose that a pilot study provided some *prior* knowledge to our application. Namely, the true intercept should be near zero and the true slope is likely between 1 and 3.
+
+Choose the prior $\pi(\beta_0,\beta_1)$ as bivariate normal with parameters $\mu_0=0,\mu_1=2,\sigma_0=.25,\sigma_1=.5,\rho=0$.
+
+To simulate from proposal $\pi(\beta_0,\beta_1)$, use the following function **sim.bivariate.norm**.
+
+```{r}
+library(MASS)
+sim.bivariate.norm <- function(n,mu0=0,mu1=0,sigma0=1,sigma1=1,rho=0) {
+  mu <- c(mu0,mu1)
+  Sigma <- matrix(c(sigma0^2,sigma0*sigma1*rho,sigma0*sigma1*rho,sigma1^2),
+                  nrow=2)
+  return(mvrnorm(n = n, mu=mu, Sigma=Sigma))
+}
+```
+
+**Problems (5) - (11):**
+
+5) Simulate 1 case and 10 cases from our prior $\pi(\beta_0,\beta_1)$.
+Recall the choice of parameters: $\mu_0=0,\mu_1=2,\sigma_0=.25,\sigma_1=.5,\rho=0$.
+
+```{r}
+## Solution goes here 
+sim.bivariate.norm(n=1, mu0=0, mu1=2, sigma0=0.25, sigma1=0.5, rho=0)
+sim.bivariate.norm(n=10, mu0=0, mu1=2, sigma0=0.25, sigma1=0.5, rho=0)
+```
+
+6) Run the MCMC algorithm using the bivariate normal prior with $\mu_0=0,\mu_1=2,\sigma_0=.25,\sigma_1=.5,\rho=0$. Run 20,000 MCMC iterations and display the first 10 simulated cases of your simulated chain $\beta_{(t)}$. 
+
+```{r}
+## Solution goes here
+R <- 20000
+beta_t_matrix <- matrix(0, nrow=2, ncol=R+1)
+beta_t_matrix[,1] <- sim.bivariate.norm(n=1, mu0=0, mu1=2, sigma0=0.25, sigma1=0.5, rho=0)
+
+for(t in 1:R) {
+  beta_star <- sim.bivariate.norm(n=1, mu0=0, mu1=2, sigma0=0.25, sigma1=0.5, rho=0)
+  beta_t <- beta_t_matrix[,t]
+  MH_ratio <- my.likelihood(beta=beta_star)/my.likelihood(beta=beta_t)
+  sample.index <- sample(c(1,2), 1,prob=c(min(MH_ratio, 1), 1-min(MH_ratio, 1)))
+  if (sample.index == 1) {
+    beta_t_matrix[,t+1] <- beta_star
+  }
+  else {
+    beta_t_matrix[,t+1] <- beta_t
+  }
+}
+head(t(beta_t_matrix), 10)
+ 
+```
+
+7) Construct traceplots (or lineplots) of the simulated chains as a function of their iterations. There should be two plots, one for $\beta_0$ and one for $\beta_1$.   
+```{r}
+## Solution goes here 
+plot(x=1:(R+1), y=beta_t_matrix[1,], type="l", xlab="Iterations", ylab="Sim Posterior", main="Posterior of beta_0: Prior 1")
+plot(x=1:(R+1), y=beta_t_matrix[2,], type="l", xlab="Iterations", ylab="Sim Posterior", main="Posterior of beta_1: Prior 1")
+```
+
+8) Remove the first 1000 simulated cases (10\% burn-in) and display the simulated posterior $\pi(\beta_0,\beta_1|y_1,\ldots,y_{100})$. To accomplish this, simply plot two histograms, one for $\beta_0$ and one for $\beta_1$. Also calculate the posterior Bayes' estimators for both $\beta_0$ and $\beta_1$.
+
+```{r}
+## Solution goes here 
+ncol(beta_t_matrix)
+beta_t_matrix_final <- beta_t_matrix[, -c(1:1000)]
+ncol(beta_t_matrix_final)
+hist(beta_t_matrix_final[1,],xlab=expression(beta[0]),breaks=40,
+ylab="Sim Posterior",main="Posterior of beta_0: Prior 1")
+abline(v=mean(beta_t_matrix_final[1,]),col="blue")
+beta_0B_1 <- mean(beta_t_matrix_final[1,])
+beta_0B_1
+hist(beta_t_matrix_final[2,],xlab=expression(beta[1]),breaks=40,
+ylab="Sim Posterior",main="Posterior of beta_0: Prior 1")
+abline(v=mean(beta_t_matrix_final[2,]),col="blue")
+beta_1B_1 <- mean(beta_t_matrix_final[2,])
+beta_1B_1
+```
+
+
+9) Based on our *prior* information ($\beta_0 \approx 0$ and $1 < \beta_1 < 3$), choose a prior distribution that exhibits poor mixing behavior. Note that you should still choose a bivariate normal for prior $\pi(\beta_0,\beta_1)$. Clearly specify your choice of the prior and run 10,000 iterations of the MCMC algorithm. Also provide traceplots showing the chain's mixing behavior.
+
+**Solution**
+
+I chose a bivariate normal prior with parameters $\mu_0=-1,\mu_1=0,\sigma_0=1,\sigma_1=1,\rho=0$
+
+```{r}
+## Solution goes here 
+R <- 20000
+beta_t_matrix1 <- matrix(0, nrow=2, ncol=R+1)
+beta_t_matrix1[,1] <- sim.bivariate.norm(n=1, mu0=-1, mu1=0.5, sigma0=1, sigma1=1, rho=0)
+
+for(t in 1:R) {
+  # Proposal bivariate normal (prior)
+  beta_star <- sim.bivariate.norm(n=1, mu0=-1, mu1=0.5, sigma0=1, sigma1=1, rho=0)
+  beta_t <- beta_t_matrix1[,t]
+  MH_ratio <- my.likelihood(beta=beta_star)/my.likelihood(beta=beta_t)
+  sample.index <- sample(c(1,2), 1,prob=c(min(MH_ratio, 1), 1-min(MH_ratio, 1)))
+  if (sample.index == 1) {
+    beta_t_matrix1[,t+1] <- beta_star
+  }
+  else {
+    beta_t_matrix1[,t+1] <- beta_t
+  }
+}
+
+```
+
+```{r}
+plot(x=1:(R+1), y=beta_t_matrix1[1,], type="l", xlab="Iterations", ylab="Sim Posterior", main="Posterior of beta_0: Prior 2")
+plot(x=1:(R+1), y=beta_t_matrix1[2,], type="l", xlab="Iterations", ylab="Sim Posterior", main="Posterior of beta_1: Prior 2")
+```
+
+10) Remove the first 1000 simulated cases (10\% burn-in) and display the simulated posterior $\pi(\beta_0,\beta_1|y_1,\ldots,y_{100})$. To accomplish this, simply plot two histograms, one for $\beta_0$ and one for $\beta_1$. Also calculate the posterior Bayes' estimators for both $\beta_0$ and $\beta_1$.
+
+```{r}
+## Solution goes here 
+beta_t_matrix1_final <- beta_t_matrix1[, -c(1:1000)]
+hist(beta_t_matrix1_final[1,],xlab=expression(beta[0]),breaks=40,
+ylab="Sim Posterior",main="Posterior of beta_0: Prior 1")
+abline(v=mean(beta_t_matrix1_final[1,]),col="blue")
+beta_0B_2 <- mean(beta_t_matrix1_final[1,])
+beta_0B_2
+hist(beta_t_matrix1_final[2,],xlab=expression(beta[1]),breaks=40,
+ylab="Sim Posterior",main="Posterior of beta_0: Prior 1")
+abline(v=mean(beta_t_matrix1_final[2,]),col="blue")
+beta_1B_2 <- mean(beta_t_matrix1_final[2,])
+beta_1B_2
+```
+
+11) Compare your Bayes estimators (for both priors) to the least squares estimator (or MLE). 
+To assess the quality of your estimators, compute the Euclidean norm: 
+\[
+\|\hat{\beta}-\beta\|.
+\]
+Let the true coefficients be defined as $\beta=\begin{pmatrix} 0 & 2 \end{pmatrix}^T$. 
+
+
+```{r}
+## Solution goes here 
+bayes1 <- sqrt((beta_0B_1-0)^2 +(beta_1B_1-2)^2)
+bayes2 <- sqrt((beta_0B_2-0)^2 +(beta_1B_2-2)^2)
+est <- nlm(my.NL.likelihood, p=c(0,0))$estimate
+MLE <- sqrt((est[1]-0)^2 + (est[2]-2)^2)
+
+c(Bayes1=bayes1, Bayes2=bayes2, MLE=MLE)
+```
+
+# A Quick Simulation and Refinement to Our Model
+
+One piece of information we neglected to include is the correlation structure between the slope $\beta_1$ and intercept $\beta_0$.  Note that a larger slope will have an influence on the intercept, and vice-versa. You will run a simulation in R to study this relationship. 
+
+**Problems (12)-(17):**
+
+12) Run the following simulation:
+
+For $i=1,2,..,1000$
+\begin{enumerate}
+\item Simulate a random vector $Y$ using the relationship
+\[
+Y_i = 2 x_i + \epsilon_i, \ \ \ \text{where} \ \ \  \epsilon_i\overset{iid}{\sim}N(0,\sigma^2=4)
+\]
+Note you will use the same $x$ vector in each iteration. 
+\item Compute the least squares estimates of both $\beta_{0}$ and $\beta_1$. Note that you will estimate both the intercept and slope even though the above model assumes $\beta_0=0$.   
+\end{enumerate} 
+After computing the 1,000 estimated slopes and intercepts, compute the sample covariance and sample correlation between your estimated slopes and intercept. Also construct a scatterplot of $\hat{\beta}_1$ versus $\hat{\beta}_0$.
+
+```{r}
+## Solution
+x <- MCMC.data$x
+slope_vec <- rep(NA, 1000)
+int_vec <- rep(0, 1000)
+for(i in 1:1000) {
+  Y.sim <- 2 * x + rnorm(length(x), sd=2)
+  lm.i <- lm(Y.sim~x)
+  int_vec[i] <- lm.i$coefficients[1]
+  slope_vec[i] <- lm.i$coefficients[2]
+}
+r <- round(cor(slope_vec, int_vec), 5)
+plot(int_vec,slope_vec,xlab=expression(hat(beta)[0]),ylab=expression(hat(beta)[1]),main=paste("r=",r))
+```
+
+13) From your linear regression class, the true correlation between $\hat{\beta}_0$ and $\hat{\beta}_1$ is 
+\[
+\rho=\text{cor}(\hat{\beta}_0,\hat{\beta}_1)=\frac{-\bar{x}\sqrt{\frac{\sigma^2}{\sum_{i=1}^n(x_i-\bar{x})^2}}}{\sqrt{\sigma^2\Bigg{(}\frac{1}{n}+\frac{\bar{x}^2}{\sum (x_i-\bar{x})^2}\Bigg{)}}}. 
+\]
+Compare your simulated covariance and correlation with their sample counterparts. Are they close?  
+
+```{r}
+## Solution
+Sxx <- sum((x-mean(x))^2)
+n <- length(x)
+
+cor(slope_vec, int_vec)
+
+(-mean(x)/sqrt(Sxx))/sqrt(1/n+(mean(x))^2/Sxx)
+```
+
+14) Include the correlation structure into your prior distribution $\pi(\beta_0,\beta_1)$.  Run the MCMC algorithm and compare your final Bayesian estimators to the previous cases.
+
+
+**Solution**
+
+Ethically, the researcher should never choose the prior after observing the data. It is however very reasonable to assume a high negative correlation based on our prior knowledge.  Thus we chose a bivariate normal prior with parameters $\mu_0=0,\mu_1=2,\sigma_0=.25,\sigma_1=.5,\rho=-.9$. This is the same prior distribution as problem (6), with the added correlation structure. 
+
+
+```{r}
+## Solution
+R <- 20000
+beta_t_matrix <- matrix(0, nrow=2, ncol=R+1)
+beta_t_matrix[,1] <- sim.bivariate.norm(n=1, mu0=0,mu1=2,sigma0=.25,sigma1=.5,rho=-.9)
+
+for(r in 1:R) {
+  beta_star <-sim.bivariate.norm(n=1,mu0=0,mu1=2,sigma0=.25,sigma1=.5,rho=-.9)
+  beta_t <- beta_t_matrix[,r]
+  R_MH <- my.likelihood(beta=beta_star)/my.likelihood(beta=beta_t)
+  Sample.index <- sample(c(1,2),1, prob=c(min(R_MH,1), 1-min(R_MH,1)))
+  if (Sample.index == 1) {
+    beta_t_matrix[,r+1] <- beta_star
+  }
+  else {
+    beta_t_matrix[,r+1] <- beta_t
+  }
+}
+```
+
+15) Construct traceplots (or lineplots) of the simulated chains as a function of their iterations. There should be two plots, one for $\beta_0$ and one for $\beta_1$.  
+
+```{r}
+## Solution
+plot(1:(R+1),beta_t_matrix[1,],type="l",xlab="Iterations",ylab="Sim Posterior",main="Posterior of beta_0: Prior 3")
+plot(1:(R+1),beta_t_matrix[2,],type="l",xlab="Iterations",ylab="Sim Posterior",main="Posterior of beta_1: Prior 3")
+```
+
+
+16) Remove the first 1000 simulated cases (10\% burn-in) and display the simulated posterior $\pi(\beta_0,\beta_1|y_1,\ldots,y_{100})$. To accomplish this, simply plot two histograms, one for $\beta_0$ and one for $\beta_1$. Also calculate the posterior Bayes' estimators for both $\beta_0$ and $\beta_1$.
+
+```{r}
+## Solution
+ncol(beta_t_matrix)
+beta_t_final <- beta_t_matrix[, -c(1:1000)]
+ncol(beta_t_final)
+hist(beta_t_final[1,],xlab=expression(beta[0]),breaks=40,
+ylab="Sim Posterior",main="Posterior of beta_0: Prior 3")
+beta_0B_3 <- mean(beta_t_final[1,])
+beta_0B_3
+abline(v=beta_0B_3,col="blue")
+hist(beta_t_final[2,],xlab=expression(beta[1]),breaks=40,
+ylab="Sim Posterior",main="Posterior of beta_1: Prior 3")
+beta_1B_3 <- mean(beta_t_final[2,])
+beta_1B_3
+abline(v=beta_1B_3,col="blue")
+```
+
+
+
+17) Compare your Bayes estimators for all three priors to the least squares estimator (or MLE). 
+To assess the quality of your estimators, compute the Euclidean norm: 
+\[
+\|\hat{\beta}-\beta\|.
+\]
+Let the true coefficients be defined as $\beta=\begin{pmatrix} 0 & 2 \end{pmatrix}^T$. 
+
+
+```{r}
+## Solution
+# Bayes Posterior 1
+GoodMixing <- sqrt((beta_0B_1-0)^2+(beta_1B_1-2)^2)
+# Bayes Posterior 2
+PoorMixing <- sqrt((beta_0B_2-0)^2+(beta_1B_2-2)^2)
+# Bayes Posterior 3
+BetterCorr <- sqrt((beta_0B_3-0)^2+(beta_1B_3-2)^2)
+# MLE or LS
+est <- nlm(my.NL.likelihood,p=c(0,0))$estimate
+MLE <- sqrt((est[1]-0)^2+(est[2]-2)^2)
+round(c(GoodMixing=GoodMixing,PoorMixing=PoorMixing,BetterCorr=BetterCorr,MLE=MLE),6)
+```
+
+# Assuming Independence Between Slopes 
+
+The additional correlation structure *barely* improved our estimator.  Assuming that the parameters $\beta_0$ and $\beta_1$ are independent ($\rho=0$) gave us almost the same performance.  Consequently, it is reasonable to place different independent priors on each parameter $\beta_j$. For example, choose *marginal* priors:
+
+\[
+\pi(\beta_0) \sim N(\mu=0,\sigma^2=.25^2)
+\]
+and 
+\[
+\pi(\beta_1) \sim \text{gamma}(\alpha=8,\beta=1/4)
+\]
+
+In this case the prior is 
+\[
+\pi(\beta_0,\beta_1)=\pi(\beta_0)\pi(\beta_1)
+\]
+
+**Problems (18)-(21):**
+
+18) Run the MCMC algorithm using the above prior. The code is nearly identical as before: 
+
+```{r}
+## Solution
+R <- 20000
+beta_t_matrix <- matrix(0,nrow=2,ncol=R+1)
+beta_t_matrix[1,1] <- rnorm(1,mean=0,sd=.25)
+beta_t_matrix[2,1] <- rgamma(1,shape=8,scale=1/4)
+for (r in 1:R) {
+# Proposal Normal*gamma (prior)
+beta_star <- c(rnorm(1,mean=0,sd=.25),rgamma(1,shape=8,scale=1/4)) # Vector
+beta_t <- beta_t_matrix[,r]
+R_MH <- my.likelihood(beta=beta_star)/my.likelihood(beta=beta_t)
+Sample.index <- sample(c(1,2),
+1,
+prob=c(min(R_MH,1),1-min(R_MH,1)))
+if(Sample.index==1) {beta_t_matrix[,r+1] <- beta_star}
+else {beta_t_matrix[,r+1] <- beta_t}
+}
+
+```
+
+19) Traceplots:
+
+```{r}
+## Solution
+plot(1:(R+1),beta_t_matrix[1,],type="l",xlab="Iterations",ylab="Sim Posterior",main="Posterior of beta_0: Prior 4")
+plot(1:(R+1),beta_t_matrix[2,],type="l",xlab="Iterations",ylab="Sim Posterior",main="Posterior of beta_1: Prior 4")
+```
+
+20) Histogram of posteriors (with burn-on):
+
+```{r}
+## Solution
+beta_t_final <- beta_t_matrix[,-c(1:1000)]
+hist(beta_t_final[1,],xlab=expression(beta[0]),breaks=40,
+ylab="Sim Posterior",main="Posterior of beta_0: Prior 4")
+beta_0B_4 <- mean(beta_t_final[1,])
+beta_0B_4
+abline(v=beta_0B_4,col="blue")
+hist(beta_t_final[2,],xlab=expression(beta[1]),breaks=40,
+ylab="Sim Posterior",main="Posterior of beta_1: Prior 4")
+beta_1B_4 <- mean(beta_t_final[2,])
+beta_1B_4
+abline(v=beta_1B_4,col="blue")
+```
+
+21) Compare your Bayes estimators for all four priors to the least squares estimator (or MLE). 
+To assess the quality of your estimators, compute the Euclidean norm: 
+\[
+\|\hat{\beta}-\beta\|.
+\]
+Let the true coefficients be defined as $\beta=\begin{pmatrix} 0 & 2 \end{pmatrix}^T$. 
+
+
+```{r}
+## Solution
+
+# Bayes Posterior 1
+GoodMixing <- sqrt((beta_0B_1-0)^2+(beta_1B_1-2)^2)
+# Bayes Posterior 2
+PoorMixing <- sqrt((beta_0B_2-0)^2+(beta_1B_2-2)^2)
+# Bayes Posterior 3
+BetterCorr <- sqrt((beta_0B_3-0)^2+(beta_1B_3-2)^2)
+# Bayes Posterior 4
+IndPriors <- sqrt((beta_0B_4-0)^2+(beta_1B_4-2)^2)
+# MLE or LS
+est <- nlm(my.NL.likelihood,p=c(0,0))$estimate
+MLE <- sqrt((est[1]-0)^2+(est[2]-2)^2)
+
+round(c(GoodMixing=GoodMixing,PoorMixing=PoorMixing,BetterCorr=BetterCorr,IndPriors=IndPriors,MLE=MLE),6)
+```

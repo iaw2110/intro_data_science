@@ -1,0 +1,144 @@
+---
+title: "Lab 5 (Practice)"
+author: "Enter Your Name and UNI Here"
+date: "April 5, 2019"
+output: pdf_document
+---
+
+# Instructions 
+Lab 5 is for practice and will not be graded. 
+
+# Background: Edgar Anderson's Iris Data
+
+The R data description follows:
+
+This famous (Fisher's or Anderson's) iris data set gives the measurements in centimeters of the variables sepal length and width and petal length and width, respectively, for 50 flowers from each of 3 species of iris. The species are Iris setosa, versicolor, and virginica.
+
+# Goal 
+
+The purpose of this lab is to utilize both **base R** and **tidyverse** functions to preform basic data manipulation tasks.   
+
+# Tasks
+
+1) Initialize the **dplyr()**  package (or install and initialize the package). 
+
+```{r}
+install.packages("dplyr", repos = "http://cran.us.r-project.org")
+```
+
+```{r}
+library(dplyr)
+```
+
+
+2) Convert the **iris** dataframe into a **tibble** and display the first 10 rows.  
+
+```{r}
+iris_tibble <- as_tibble(iris)
+head(iris_tibble, 10)
+```
+3) Use base R commands to regress **Petal.Length** against **Sepal.Length**. Use the **coef()** function to report the estimated intercept and slope of your simple linear regression model. Round the estimated slope and intercept to 4 decimals.       
+```{r}
+round(coef(lm(Petal.Length ~ Sepal.Length, data = iris_tibble)) ,4)
+```
+4) Initialize the **magrittr** package (or install and initialize the package).  Repeat Problem 3 using a **pipe**.  
+
+```{r}
+library(magrittr)
+
+iris_tibble %>%
+  lm(Petal.Length~Sepal.Length, .) %>%
+  coef() %>%
+  round(4)
+```
+5) Use base R to regress **Petal.Length** against **Sepal.Length** for each level of **Species**. The output should be a matrix or dataframe containing the estimated slope and intercept for each level of species. In this exercise, you should use the **Split/Apply/Combine** strategy which includes: (i) splitting the dataset, (ii) applying a relevant function, and (iii) combining your results. Round the slopes and intercepts to 4 decimals.  
+
+```{r}
+my.iris.lm <- function(species.df) {
+  return (round(coef(lm(Petal.Length ~ Sepal.Length, data=species.df)),4))
+}
+iris.split <- split(iris, iris$Species)
+iris.coef <- sapply(iris.split, my.iris.lm )
+iris.coef
+```
+6) Initialize the **purrr** package (or install and initialize the package).  Repeat Problem 5 using a **pipe**. In this exercise, you will need to use the **map()** function in conjunction with the **pipe**.  To produce a dataframe (or tibble), the last function in the **pipe** should be **map_df()**.   
+
+```{r}
+library(purrr)
+pipe<-iris_tibble%>%
+  split(.$Species)%>%
+  map(~ lm(Petal.Length ~ Sepal.Length, data=.))%>%
+  map(coef)
+pipe
+```
+
+7) Use a **pipe** to compute the correlation coefficient between **Petal.Length** and **Sepal.Length** for each level of **Species**. The output should be vector containing the estimated correlation coefficient for each level of species. 
+
+```{r}
+iris_cor <- iris_tibble%>%
+  split(.$Species)%>%
+  map_dbl(~cor(.$Petal.Length, .$Sepal.Length))
+iris_cor
+```
+
+
+8) Consider writing a **loop** that computes the mean of each quantitative variable split by species and stores the computed means in a matrix named  **MeanFlowers**.  
+
+Your goal is to repeat this question using **Split/Apply/Combine** with base R. This includes: (i) splitting the dataset by species, (ii) applying a relevant function, and (iii) combining your results. Round the means to 4 decimals. 
+
+The loop is solved below.  This solution uses **loop** and **tapply()**:  
+```{r}
+# define a matrix of zeros
+MeanFlowers <- matrix(0,nrow=4,ncol=3)
+
+# define a character vector corresponding to the numeric variable names
+measurements <- c("Sepal.Length","Sepal.Width","Petal.Length","Petal.Width")
+
+# name the rows and columns of the matrix MeanFlowers 
+rownames(MeanFlowers)  <- measurements
+colnames(MeanFlowers)  <- c("setosa","versicolor","virginica")
+
+# Loop
+for (j in measurements) {
+  
+  #-- R code goes here ----
+  MeanFlowers[j,] <- round(tapply(iris[,j],iris[,"Species"],mean),4)
+
+}
+MeanFlowers
+```
+
+**Solution:**
+
+```{r}
+iris_mean <- function(df) {
+  measurements <- c("Sepal.Length","Sepal.Width",
+"Petal.Length","Petal.Width")
+  return(apply(df[,measurements], 2, mean))
+}
+sapply(split(iris, iris$Species), iris_mean)
+```
+
+
+9) Repeat question 8 using a **pipe**. You are allowed to utilize your **means function** from problem 8 or you can use the **summarise_all()** function. 
+
+
+```{r}
+iris_tibble%>%
+  split(.$Species)%>%
+  map_df(~iris_mean(.))
+
+iris_tibble%>%
+  group_by(Species)%>%
+  summarise_all(funs(mean))
+```
+
+
+
+
+
+
+
+
+
+

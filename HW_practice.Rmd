@@ -1,0 +1,127 @@
+---
+title: "Practice Homework"
+author: "Ivan Wolansky"
+date: "May 7, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+moretti <- read.csv("moretti.csv")
+head(moretti)
+```
+
+i.
+
+```{r}
+poisLoglike <- function(lambda, data) {
+  return(sum(log((lambda^data * exp(1)^-lambda)/(factorial(data)))))
+}
+data1 <- c(1, 0, 0, 1, 1)
+lambda1 <- 1
+poisLoglike(lambda1, data1)
+```
+
+ii.
+
+```{r}
+count_new_genres <- function(year) {
+  return(sum(moretti$Begin == year))
+}
+count_new_genres(1803)
+count_new_genres(1850)
+```
+
+iii.
+
+```{r}
+years <- seq(1740, 1900)
+num.years <- length(years)
+new_genres <- rep(NA, num.years)
+names(new_genres) <- years
+
+for (i in 1:num.years) {
+  new_genres[i] <- count_new_genres(years[i])
+}
+
+twoyears <- which(years == 1803 | years == 1850)
+new_genres[twoyears]
+head(new_genres)
+```
+
+iv.
+
+```{r}
+lambda_seq <- seq(0, 3, by=0.001)
+num.lambdas <- length(lambda_seq)
+loglikes <- rep(NA, num.lambdas)
+for (i in 1:num.lambdas) {
+  loglikes[i] <- poisLoglike(lambda_seq[i], new_genres)
+}
+plot(x=lambda_seq, y=loglikes, type='l', ylim=c(-450, -50))
+lambda_seq[which.max(loglikes)]
+```
+
+v.
+
+```{r}
+negpoisLoglike <- function(lambda, data) {
+  return(-sum(log((lambda^data * exp(1)^-lambda)/(factorial(data)))))
+}
+nlm(negpoisLoglike, 1, new_genres)
+```
+
+vi.
+
+```{r}
+intergenre_intervals <- diff(sort(moretti$Begin))
+intergenre_intervals
+mean <- mean(intergenre_intervals)
+mean
+sd <- sd(intergenre_intervals)
+sd
+coefficient.of.var <- sd/mean
+coefficient.of.var
+```
+
+vii. a.
+
+```{r}
+poopy <- function(numbers) {
+  names(numbers) <- 1:length(numbers)
+  numbers <- numbers[numbers != 0]
+  years <- as.numeric(rep(names(numbers), numbers))
+  return(diff(sort(years)))
+}
+poopy(new_genres)
+```
+b.
+
+```{r}
+simulation.bitch <- function(bitch.years, bitch.mean) {
+  sim.pois <- rpois(bitch.years, lambda = bitch.mean)
+  sim.intergenre <- poopy(sim.pois)
+  coef.of.var <- sd(sim.intergenre)/mean(sim.intergenre)
+  return(list(intergenre_intervals = sim.intergenre, coef.of.var = coef.of.var))
+}
+for (i in 1:10) {
+res <- simulation.bitch(161, 0.273)
+print(mean(res$intergenre_intervals))
+}
+```
+
+viii.
+
+```{r}
+coef.of.var <- rep(NA, 10000)
+
+for (i in 1:10000) {
+  res <- simulation.bitch(161, 0.273)
+  coef.of.var[i] <- res$coef.of.var
+}
+
+mean(coef.of.var > coefficient.of.var)
+```
+
+ix.
